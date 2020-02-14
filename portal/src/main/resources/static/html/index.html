@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/default/easyui.css">
+    <link rel="stylesheet" type="text/css" href="/js/easyui/themes/icon.css">
+    <link rel="stylesheet" type="text/css" href="/css/typora/gitlab.css">
+    <link rel="stylesheet" href="/js/highlight/styles/monokai-sublime.css">
+    <script src="/js/highlight/highlight.pack.js"></script>
+    <script type="text/javascript" src="/js/easyui/jquery.min.js"></script>
+    <script type="text/javascript" src="/js/easyui/jquery.easyui.min.js"></script>
+    <script type="text/javascript" src="/js/showdown/dist/showdown.js"></script>
+    <style>
+        html,body {
+            width: 100%;
+            height: 100%;
+        }
+
+    </style>
+</head>
+<body>
+<script>
+    $(function () {
+        $.ajax({
+            url: "/catalog/getFolder",
+            dataType: "json",
+            success: function (data) {
+                $('#t1').tree({
+                    data: [data],
+                    onContextMenu: function(e, node){
+                        e.preventDefault();
+                        $('#t1').tree('select', node.target);
+                        if(node.folder == false) {
+                            $('#add').hide();
+                        } else {
+                            $('#add').show();
+                        }
+                        $('#mm').menu('show', {
+                            left: e.pageX,
+                            top: e.pageY
+                        });
+                    },
+                    onAfterEdit: function(node) {
+                        if(node.id == "0") {
+                            $.ajax({
+                                url: "/catalog/addFolder",
+                                data: {"father_id":node.father_id,"catalog_name":node.text,"isFolder":node.folder},
+                                success: function (data) {
+                                    node.id = data;
+                                }
+                            });
+                        } else {
+                            $.ajax({
+                                url: "/catalog/renameFolder",
+                                data: {"catalog_id": node.id, "catalog_name": node.text}
+                            });
+                        }
+                    }
+                })
+            }
+        });
+    });
+    function menuHandler(item){
+        var tree = $('#t1');
+        var node = tree.tree('getSelected');
+
+        switch(item.name) {
+            case 'folder': {
+                tree.tree('append', {
+                    parent: node.target,
+                    data: [{
+                        id: 0,
+                        state: 'closed',
+                        text: '新文件夹',
+                        father_id: node.id,
+                        folder: true
+                    }]
+                });
+                var node02 = tree.tree('find',0);
+                tree.tree('expand',node.target);
+                tree.tree('beginEdit',node02.target);
+                break;
+            }
+            case 'markdown': {
+                tree.tree('append', {
+                    parent: node.target,
+                    data: [{
+                        id: 0,
+                        state: 'open',
+                        text: '新文件',
+                        father_id: node.id,
+                        folder: false
+                    }]
+                });
+                var node02 = tree.tree('find',0);
+                tree.tree('expand',node.target);
+                tree.tree('beginEdit',node02.target);
+                break;
+            }
+            case 'rename': {
+                tree.tree('beginEdit',node.target);
+                break;
+            }
+            case 'remove': {
+                tree.tree('remove',node.target);
+                $.ajax({
+                    url: "/catalog/removeFolder",
+                    data: {"father_id": node.father_id,"catalog_id": node.id}
+                });
+                break;
+            }
+        }
+    };
+    function convert(){
+        var text = document.getElementById("noteContent").value;
+        var converter = new showdown.Converter();
+        var html = converter.makeHtml(text);
+
+        document.getElementById("noteDisplay").innerHTML = html;
+        hljs.highlightBlock(document.getElementById("noteDisplay"));
+
+    }
+</script>
+<div class="easyui-layout" style="width:100%;height:100%;">
+    <div region="west" split="true" title="导航栏" style="width:250px;">
+        <ul id="t1">
+        </ul>
+    </div>
+    <div id="content" class="easyui-layout"  region="center" title="日记" >
+        <textarea id="noteContent"  region="west" style="height:100%;width:50%; background: grey;padding: 10px" onkeyup="convert()"></textarea>
+        <div id="noteDisplay"  region="east"  style="height:100%;width:50%;padding: 20px"></div>
+    </div>
+</div>
+
+<div id="mm" class="easyui-menu" style="widht:120px" data-options="onClick: menuHandler">
+    <div id="add" data-options="iconCls:'icon-add'">
+        <span>添加</span>
+        <div style="width:150px;">
+            <div name="folder"><b>文件夹</b></div>
+            <div name="markdown">markdown</div>
+        </div>
+    </div>
+    <div data-options="iconCls:'icon-edit',name:'rename'">重命名</div>
+    <div data-options="iconCls:'icon-remove',name:'remove'">删除</div>
+</div>
+</body>
+</html>

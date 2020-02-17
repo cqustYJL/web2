@@ -15,13 +15,71 @@
         html,body {
             width: 100%;
             height: 100%;
+            padding: 0;
+            margin: 0;
         }
-
+        #noteContent {
+            height: 100%;
+            width: 50%;
+            background: grey;
+            padding: 10px;
+            padding-bottom: 70px;
+            float: left
+        }
+        #noteDisplay {
+            height: 100%;
+            width: 50%;
+            padding: 20px;
+            padding-bottom: 70px
+        }
+        .btn {
+            float:right;
+            margin: 3px;
+            border: 1px solid #70bcf6
+        }
     </style>
 </head>
 <body>
 <script>
+    var node_text = "新文件夹";
+    var current_file = "0";
     $(function () {
+        $('#model_edit').hide();
+        paseImg();
+        queryCatalog();
+        convert();
+        cursorInit();
+
+    });
+    function cursorInit() {
+        $.fn.extend({
+            insertAtCaret: function(myValue){
+                var $t=$(this)[0];
+                if (document.selection) {
+                    this.focus();
+                    sel = document.selection.createRange();
+                    sel.text = myValue;
+                    this.focus();
+                }
+                else
+                if ($t.selectionStart || $t.selectionStart == '0') {
+                    var startPos = $t.selectionStart;
+                    var endPos = $t.selectionEnd;
+                    var scrollTop = $t.scrollTop;
+                    $t.value = $t.value.substring(0, startPos) + myValue + $t.value.substring(endPos, $t.value.length);
+                    this.focus();
+                    $t.selectionStart = startPos + myValue.length;
+                    $t.selectionEnd = startPos + myValue.length;
+                    $t.scrollTop = scrollTop;
+                }
+                else {
+                    this.value += myValue;
+                    this.focus();
+                }
+            }
+        });
+    }
+    function queryCatalog(){
         $.ajax({
             url: "/catalog/getFolder",
             dataType: "json",
@@ -29,6 +87,7 @@
                 $('#t1').tree({
                     data: [data],
                     onContextMenu: function(e, node){
+                        displayContent(node);
                         e.preventDefault();
                         $('#t1').tree('select', node.target);
                         if(node.folder == false) {
@@ -41,26 +100,111 @@
                             top: e.pageY
                         });
                     },
+                    onBeforeEdit: function(node) {
+                        node_text = node.text;
+                    },
                     onAfterEdit: function(node) {
                         if(node.id == "0") {
                             $.ajax({
                                 url: "/catalog/addFolder",
                                 data: {"father_id":node.father_id,"catalog_name":node.text,"isFolder":node.folder},
-                                success: function (data) {
-                                    node.id = data;
+                                success: function (obj) {
+                                    if(!obj.success){
+                                        tree.tree('remove',node.target);
+                                        alert(obj.data);
+                                    } else {
+                                        node.id = obj.data;
+                                    }
                                 }
                             });
                         } else {
                             $.ajax({
                                 url: "/catalog/renameFolder",
-                                data: {"catalog_id": node.id, "catalog_name": node.text}
+                                data: {"catalog_id": node.id, "catalog_name": node.text},
+                                success: function (obj) {
+                                    if(!obj.success) {h
+                                        alert(obj.data);
+                                        $('#tt').tree('update', {
+                                            target: node.target,
+                                            text: node_text
+                                        });
+                                    }
+                                }
                             });
                         }
+                    },
+                    onClick: function(node){
+                        displayContent(node);
                     }
                 })
             }
         });
-    });
+    }
+    function displayContent(node) {
+        if(!node.folder) {
+            $('#model_view').show();
+            $('#model_edit').hide();
+            if(node.id == current_file) {
+                return;
+            }
+            current_file = node.id;
+            $.ajax({
+                url: "/catalog/getNoteContent",
+                data: {"catalog_id": node.id},
+                success: function (obj) {
+                    if (!obj.success) {
+                        alert(obj.data);
+                    } else {
+                        $('#note_title').text(node.text);
+                        $('#noteContent').val(obj.data);
+                        convert();
+                    }
+                }
+            });
+        }
+    }
+    function paseImg()
+    {
+        document.getElementById('noteContent').addEventListener("paste",function(e){
+            var clipboardData = window.clipboardData || e.clipboardData, items, item;
+            if (clipboardData) {
+                items = clipboardData.items;
+                if (!items) {
+                    return;
+                }
+                item = items[0];
+                if (item && item.kind === 'file' && item.type.match(/^image\//i)) {
+                    var blob = item.getAsFile(),
+                        reader = new FileReader();
+                    reader.onloadend = function (e) {
+                        uploadFile(e.target.result);
+                    };
+                    reader.readAsDataURL(blob);
+                }
+            }
+        });
+    };
+
+    function uploadFile(base64) {
+        var data = {
+            base64 : base64
+        };
+        $.ajax({
+            type : "POST",
+            url : "/catalog/uploadFile",
+            data : data,
+            success : function(obj) {
+                if(obj.success) {
+                    $('#noteContent').insertAtCaret(obj.data);
+                } else {
+                    alert(obj.data);
+                }
+            },
+            error : function() {
+                alert("由于网络原因，上传失败。");
+            }
+        });
+    }
     function menuHandler(item){
         var tree = $('#t1');
         var node = tree.tree('getSelected');
@@ -103,33 +247,88 @@
                 break;
             }
             case 'remove': {
-                tree.tree('remove',node.target);
                 $.ajax({
                     url: "/catalog/removeFolder",
-                    data: {"father_id": node.father_id,"catalog_id": node.id}
+                    data: {"father_id": node.father_id,"catalog_id": node.id},
+                    success: function (obj) {
+                        if(obj.success){
+                            tree.tree('remove',node.target);
+                        } else {
+                            alert(obj.data);
+                        }
+                    }
                 });
                 break;
             }
         }
     };
     function convert(){
-        var text = document.getElementById("noteContent").value;
+        var text = $("#noteContent").val();
         var converter = new showdown.Converter();
         var html = converter.makeHtml(text);
-
-        document.getElementById("noteDisplay").innerHTML = html;
+        $('#noteDisplay').html(html);
         hljs.highlightBlock(document.getElementById("noteDisplay"));
+        $('#model_view').html(html);
+        hljs.highlightBlock(document.getElementById("model_view"));
+    }
+    function buttonHandler(btn) {
+        var node = $('#t1').tree('getSelected');
+        if(node && !node.folder) {
+            var content = $('#noteContent').val();
+            switch (btn) {
+                case "save": {
+                    $.ajax({
+                        url: "/catalog/modifyContent",
+                        data: {catalog_id: node.id, catalog_content: content},
+                        success: function (obj) {
 
+                        }
+                    });
+                    break;
+                }
+                case "edit": {
+                    $('#model_edit').show();
+                    $('#model_view').hide();
+                    break;
+                }
+                case "more": {
+                    alert("more");
+                    break;
+                }
+            }
+        }
     }
 </script>
-<div class="easyui-layout" style="width:100%;height:100%;">
-    <div region="west" split="true" title="导航栏" style="width:250px;">
-        <ul id="t1">
-        </ul>
+<div id="portal" class="easyui-layout" style="width:100%;height:100%;">
+    <div region="west" split="true" title="导航栏" noheader="true" style="width:15%;">
+        <div style="text-align:center;line-height:50px;height:50px;width: 100%;background: linear-gradient(to bottom,#EFF5FF 0,#E0ECFF 100%)">
+            <p style="padding:0;margin:0;font-weight: bold;font-size: 20px;">导航栏</p>
+        </div>
+        <div>
+            <ul id="t1">
+            </ul>
+        </div>
+
     </div>
-    <div id="content" class="easyui-layout"  region="center" title="日记" >
-        <textarea id="noteContent"  region="west" style="height:100%;width:50%; background: grey;padding: 10px" onkeyup="convert()"></textarea>
-        <div id="noteDisplay"  region="east"  style="height:100%;width:50%;padding: 20px"></div>
+    <div region="center" style="width:85%;" >
+        <div style="height:50px;width:100%;background: linear-gradient(to bottom,#EFF5FF 0,#E0ECFF 100%)">
+            <div style="height:100%;width: 70%; float: left;padding-left: 10px; font-size: 16px">
+                <p id="note_title">日记</p>
+            </div>
+            <div style="height: 100%;width: 30%;float: right">
+                <div style="padding:5px;width:100%;height:100%;">
+                    <a href="#" class="btn easyui-linkbutton" iconCls="icon-more" plain="true" onclick="buttonHandler('more')" style="">更多</a>
+                    <a href="#" class="btn easyui-linkbutton" plain="true" onclick="buttonHandler('edit')" >编辑</a>
+                    <a href="#" class="btn easyui-linkbutton" iconCls="icon-save" plain="true" onclick="buttonHandler('save')">保存</a>
+                </div>
+            </div>
+        </div>
+        <div id="model_edit" style="width: 100%;height: 100%;">
+            <textarea id="noteContent" onkeyup="convert()"></textarea>
+            <div id="noteDisplay"></div>
+        </div>
+        <div id="model_view" style="width: 100%;height: 100%; padding-bottom: 70px">
+        </div>
     </div>
 </div>
 

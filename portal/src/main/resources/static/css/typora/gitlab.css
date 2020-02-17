@@ -707,3 +707,9 @@ footer {
 #write>p:only-child:empty::before {
     opacity: 1;
 }
+
+img {
+    display: block;
+    max-width:70%;
+    margin: 0 auto;
+}

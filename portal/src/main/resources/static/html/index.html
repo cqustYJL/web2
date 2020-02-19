@@ -122,12 +122,16 @@
                                 url: "/catalog/renameFolder",
                                 data: {"catalog_id": node.id, "catalog_name": node.text},
                                 success: function (obj) {
-                                    if(!obj.success) {h
+                                    if(!obj.success) {
                                         alert(obj.data);
                                         $('#tt').tree('update', {
                                             target: node.target,
                                             text: node_text
                                         });
+                                    } else {
+                                        if(!node.folder) {
+                                            $('#note_title').text(node.text)
+                                        }
                                     }
                                 }
                             });

@@ -37,4 +37,8 @@ public class FastDFSClientUtil {
         byte[] bytes = storageClient.downloadFile(group, path, downloadByteArray);
         return bytes;
     }
+    public void deleteFile(String fileUrl) {
+        System.out.println("fileUrl: " + fileUrl);
+        storageClient.deleteFile(fileUrl);
+    }
 }

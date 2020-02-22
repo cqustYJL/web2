@@ -1,6 +1,5 @@
 package com.note.portal.service.impl;
 
-import com.mongodb.client.result.UpdateResult;
 import com.note.portal.po.BASE64DecodedMultipartFile;
 import com.note.portal.po.Catalog;
 import com.note.portal.po.NoteContent;
@@ -10,8 +9,6 @@ import com.note.portal.util.FastDFSClientUtil;
 import com.note.portal.vo.EasyUITreeNode;
 import com.note.portal.vo.ResponseResult;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
@@ -19,7 +16,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletResponse;
-import java.io.File;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -68,7 +64,7 @@ public class CatalogServiceImpl implements CatalogService {
     public ResponseResult removeFolder(String father_id, String catalog_id) {
         //查询该文件夹及其子文件
         List<String> catalogIdList = new ArrayList<>();
-        EasyUITreeNode folder = getFolder(catalog_id,father_id);
+        EasyUITreeNode folder = getRemoveFolder(catalog_id,father_id);
         if(folder != null) {
             getCatalogIdList(catalogIdList, folder);
         }
@@ -96,24 +92,43 @@ public class CatalogServiceImpl implements CatalogService {
         return new ResponseResult(true,"修改成功");
     }
 
-    public EasyUITreeNode getFolder(String catalog_id, String father_id) {
+    public EasyUITreeNode getRemoveFolder(String catalog_id, String father_id) {
         List<Catalog> list = mongoTemplate.findAll(Catalog.class);
         EasyUITreeNode easyUITreeNode = null;
         for(Catalog catalog : list) {
             if(catalog_id.equals(catalog.getCatalog_id())) {
                 easyUITreeNode  = new EasyUITreeNode(catalog_id,catalog.getCatalog_name(),catalog.getCatalog_type() == 0 ? "closed" : "open",catalog.getCatalog_type(),father_id);
-                getChildren(easyUITreeNode,list);
+                getChildren(easyUITreeNode,list,true);
+                deleteUploadFile(catalog.getCatalog_id(),catalog.getCatalog_type());
                 break;
             }
         }
         return easyUITreeNode;
     }
-    private void getChildren(EasyUITreeNode easyUITreeNode, List<Catalog> list) {
+
+    private void deleteUploadFile(String catalog_id, Integer catalog_type) {
+        if(catalog_type == 2 || catalog_type == 3) {
+
+            NoteContent noteContent = mongoTemplate.findById(catalog_id, NoteContent.class);
+            String content = noteContent.getContent();
+            if(catalog_type == 2) {
+                content = content.substring(content.indexOf("http://"),content.length() - 1);
+            }
+            String fileNginxUrl = catalogProperties.getFileNginxUrl();
+            String fileUrl = content.substring(content.indexOf(fileNginxUrl) + fileNginxUrl.length() + 1);
+            fastDFSClientUtil.deleteFile(fileUrl);
+        }
+    }
+
+    private void getChildren(EasyUITreeNode easyUITreeNode, List<Catalog> list, boolean remove) {
         for(Catalog catalog : list) {
             if(easyUITreeNode.getId().equals(catalog.getFather_id())) {
                 EasyUITreeNode easyUITreeNode02  = new EasyUITreeNode(catalog.getCatalog_id(),catalog.getCatalog_name(),catalog.getCatalog_type() == 0 ? "closed" : "open",catalog.getCatalog_type(),catalog.getFather_id());
                 easyUITreeNode.getChildren().add(easyUITreeNode02);
-                getChildren(easyUITreeNode02,list);
+                getChildren(easyUITreeNode02,list, remove);
+                if(remove) {
+                    deleteUploadFile(catalog.getCatalog_id(), catalog.getCatalog_type());
+                }
             }
         }
     }
@@ -162,7 +177,7 @@ public class CatalogServiceImpl implements CatalogService {
         for(Catalog catalog : list) {
             if("0".equals(catalog.getFather_id())) {
                 easyUITreeNode  = new EasyUITreeNode(catalog.getCatalog_id(),catalog.getCatalog_name(),catalog.getCatalog_type() == 0 ? "closed" : "open",catalog.getCatalog_type(),"0");
-                getChildren(easyUITreeNode,list);
+                getChildren(easyUITreeNode,list, false);
                 break;
             }
         }

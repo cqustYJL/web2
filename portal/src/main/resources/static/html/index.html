@@ -90,10 +90,21 @@
                         displayContent(node);
                         e.preventDefault();
                         $('#t1').tree('select', node.target);
-                        if(node.folder == false) {
+                        if(node.father_id == 0) {
+                            $('#rename').hide();
+                            $('#remove').hide();
+                        } else {
+                            $('#rename').show();
+                            $('#remove').show();
+                        }
+                        if(node.catalog_type != 0) {
                             $('#add').hide();
+                            $('#upload').hide();
+                            $('#download').show();
                         } else {
                             $('#add').show();
+                            $('#upload').show();
+                            $('#download').hide();
                         }
                         $('#mm').menu('show', {
                             left: e.pageX,
@@ -107,7 +118,7 @@
                         if(node.id == "0") {
                             $.ajax({
                                 url: "/catalog/addFolder",
-                                data: {"father_id":node.father_id,"catalog_name":node.text,"isFolder":node.folder},
+                                data: {"father_id":node.father_id,"catalog_name":node.text,"catalog_type":node.catalog_type},
                                 success: function (obj) {
                                     if(!obj.success){
                                         tree.tree('remove',node.target);
@@ -129,7 +140,7 @@
                                             text: node_text
                                         });
                                     } else {
-                                        if(!node.folder) {
+                                        if(node.catalog_type != 0) {
                                             $('#note_title').text(node.text)
                                         }
                                     }
@@ -145,7 +156,7 @@
         });
     }
     function displayContent(node) {
-        if(!node.folder) {
+        if(node.catalog_type != 0) {
             $('#model_view').show();
             $('#model_edit').hide();
             if(node.id == current_file) {
@@ -160,7 +171,11 @@
                         alert(obj.data);
                     } else {
                         $('#note_title').text(node.text);
-                        $('#noteContent').val(obj.data);
+                        if(node.catalog_type == 3) {
+                            $('#noteContent').val("此文件暂不支持预览");
+                        } else {
+                            $('#noteContent').val(obj.data);
+                        }
                         convert();
                     }
                 }
@@ -181,7 +196,7 @@
                     var blob = item.getAsFile(),
                         reader = new FileReader();
                     reader.onloadend = function (e) {
-                        uploadFile(e.target.result);
+                        uploadImage(e.target.result);
                     };
                     reader.readAsDataURL(blob);
                 }
@@ -189,13 +204,13 @@
         });
     };
 
-    function uploadFile(base64) {
+    function uploadImage(base64) {
         var data = {
             base64 : base64
         };
         $.ajax({
             type : "POST",
-            url : "/catalog/uploadFile",
+            url : "/catalog/uploadImage",
             data : data,
             success : function(obj) {
                 if(obj.success) {
@@ -222,7 +237,7 @@
                         state: 'closed',
                         text: '新文件夹',
                         father_id: node.id,
-                        folder: true
+                        catalog_type: 0
                     }]
                 });
                 var node02 = tree.tree('find',0);
@@ -238,7 +253,7 @@
                         state: 'open',
                         text: '新文件',
                         father_id: node.id,
-                        folder: false
+                        catalog_type: 1
                     }]
                 });
                 var node02 = tree.tree('find',0);
@@ -264,6 +279,33 @@
                 });
                 break;
             }
+            case 'upload': {
+                $('#father_id_text').val(node.id);
+                $('#upload_dlg').dialog('open').dialog('setTitle','上传文件');
+                break;
+            }
+            case 'download': {
+                window.open("/catalog/downloadFile?catalog_id=" +  node.id);
+                // $.ajax({
+                //     url: "/catalog/getNoteContent",
+                //     data: {"catalog_id": node.id},
+                //     success: function (obj) {
+                //         if (!obj.success) {
+                //             alert(obj.data);
+                //         } else {
+                //             window.open(obj.data);
+                //         }
+                //     }
+                // });
+                // $.ajax({
+                //     url: "/catalog/downloadFile",
+                //     data: {"catalog_id": node.id},
+                //     success: function (obj) {
+                //
+                //     }
+                // });
+                break;
+            }
         }
     };
     function convert(){
@@ -277,7 +319,7 @@
     }
     function buttonHandler(btn) {
         var node = $('#t1').tree('getSelected');
-        if(node && !node.folder) {
+        if(node && node.catalog_type != 0) {
             var content = $('#noteContent').val();
             switch (btn) {
                 case "save": {
@@ -291,8 +333,13 @@
                     break;
                 }
                 case "edit": {
-                    $('#model_edit').show();
-                    $('#model_view').hide();
+                    if(node.catalog_type != 3) {
+                        $('#model_edit').show();
+                        $('#model_view').hide();
+                    } else {
+                        $('#model_edit').hide();
+                        $('#model_view').show();
+                    }
                     break;
                 }
                 case "more": {
@@ -301,6 +348,37 @@
                 }
             }
         }
+    };
+    function uploadFile() {
+        $.ajax({
+            type: "post",
+            url: "/catalog/uploadFile",
+            data: new FormData($('#file_form')[0]),
+            processData: false,
+            contentType: false,
+            success: function (obj) {
+                var node = obj.data;
+                if(obj.success) {
+                    var parent = $('#t1').tree('find',node.father_id);
+                    $('#t1').tree('append', {
+                        parent: parent.target,
+                        data: [{
+                            id: node.catalog_id,
+                            state: node.catalog_type,
+                            text: node.catalog_name,
+                            father_id: node.father_id,
+                            catalog_type: node.catalog_type
+                        }]
+                    });
+                    $('#upload_dlg').dialog('close');
+                } else {
+                    alert(node);
+                }
+            },
+            error: function () {
+                alert("异常!");
+            }
+        });
     }
 </script>
 <div id="portal" class="easyui-layout" style="width:100%;height:100%;">
@@ -344,8 +422,21 @@
             <div name="markdown">markdown</div>
         </div>
     </div>
-    <div data-options="iconCls:'icon-edit',name:'rename'">重命名</div>
-    <div data-options="iconCls:'icon-remove',name:'remove'">删除</div>
+    <div id="rename" data-options="iconCls:'icon-edit',name:'rename'">重命名</div>
+    <div id="remove" data-options="iconCls:'icon-remove',name:'remove'">删除</div>
+    <div id="upload" data-options="iconCls:'',name:'upload'">上传文件</div>
+    <div id="download" data-options="iconCls:'',name:'download'">下载</div>
+</div>
+<div id="upload_dlg" class="easyui-dialog" data-options="closed:true,closable:false,modal:true,buttons:'#upload_dlg_buttons'"
+     style="width: 300px; height: 150px; padding: 10px 20px; text-align: center;">
+    <form id="file_form" method="post" enctype="multipart/form-data">
+        <input id="father_id_text" type="hidden" name="father_id">
+        <input name="note_file" class="easyui-filebox" style="width:200px">
+    </form>
+    <div id="upload_dlg_buttons">
+        <a href="javascript:void(0);" class="easyui-linkbutton" id="submitbutton" data-options="iconCls:'icon-ok'" onclick="uploadFile()">确定</a>
+        <a href="javascript:void(0);" class="easyui-linkbutton" data-options="iconCls:'icon-cancel'" onclick="$('#upload_dlg').dialog('close')">取消</a>
+    </div>
 </div>
 </body>
 </html>

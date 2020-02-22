@@ -16,16 +16,22 @@ public class Catalog {
     @Id
     private String catalog_id;
     private String catalog_name;
-    private Boolean isFolder;
+    /* catalog_type说明
+    0:文件夹
+    1：笔记文件
+    2：上传文件-图片
+    3：上传文件-非图片文件
+     */
+    private Integer catalog_type;
     private String father_id;
     private List<String> children_id = new ArrayList<>();
 
     public Catalog() {
     }
 
-    public Catalog(String catalog_name, Boolean isFolder, String father_id) {
+    public Catalog(String catalog_name, Integer catalog_type, String father_id) {
         this.catalog_name = catalog_name;
-        this.isFolder = isFolder;
+        this.catalog_type = catalog_type;
         this.father_id = father_id;
     }
 
@@ -45,12 +51,12 @@ public class Catalog {
         this.catalog_name = catalog_name;
     }
 
-    public Boolean getFolder() {
-        return isFolder;
+    public Integer getCatalog_type() {
+        return catalog_type;
     }
 
-    public void setFolder(Boolean folder) {
-        isFolder = folder;
+    public void setCatalog_type(Integer catalog_type) {
+        this.catalog_type = catalog_type;
     }
 
     public String getFather_id() {
@@ -74,7 +80,7 @@ public class Catalog {
         return "Catalog{" +
                 "catalog_id=" + catalog_id +
                 ", catalog_name='" + catalog_name + '\'' +
-                ", isFolder=" + isFolder +
+                ", catalog_type=" + catalog_type +
                 ", father_id=" + father_id +
                 ", children_id=" + children_id +
                 '}';

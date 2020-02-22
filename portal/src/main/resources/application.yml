@@ -1,0 +1,16 @@
+spring:
+  data:
+    mongodb:
+      host: 10.20.134.151
+      port: 27017
+      database: note
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 1000MB
+fdfs:
+  so-timeout: 1500
+  connect-timeout: 600
+  tracker-list: 10.20.134.151:22122
+catalog:
+  file-nginx-url: 10.20.134.151:80

@@ -12,18 +12,18 @@ public class EasyUITreeNode {
     private String id;
     private String text;
     private String state;
-    private Boolean isFolder;
+    private Integer catalog_type;
     private String father_id;
     private List<EasyUITreeNode> children = new ArrayList<>();
 
     public EasyUITreeNode() {
     }
 
-    public EasyUITreeNode(String id, String text, String state, Boolean isFolder, String father_id) {
+    public EasyUITreeNode(String id, String text, String state, Integer catalog_type, String father_id) {
         this.id = id;
         this.text = text;
         this.state = state;
-        this.isFolder = isFolder;
+        this.catalog_type = catalog_type;
         this.father_id = father_id;
     }
 
@@ -51,12 +51,12 @@ public class EasyUITreeNode {
         this.state = state;
     }
 
-    public Boolean getFolder() {
-        return isFolder;
+    public Integer getCatalog_type() {
+        return catalog_type;
     }
 
-    public void setFolder(Boolean folder) {
-        isFolder = folder;
+    public void setCatalog_type(Integer catalog_type) {
+        this.catalog_type = catalog_type;
     }
 
     public String getFather_id() {
@@ -81,7 +81,7 @@ public class EasyUITreeNode {
                 "id='" + id + '\'' +
                 ", text='" + text + '\'' +
                 ", state='" + state + '\'' +
-                ", isFolder=" + isFolder +
+                ", catalog_type=" + catalog_type +
                 ", father_id='" + father_id + '\'' +
                 ", children=" + children +
                 '}';

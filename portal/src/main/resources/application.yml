@@ -1,7 +1,7 @@
 spring:
   data:
     mongodb:
-      host: 10.20.134.151
+      host: 114.55.65.144
       port: 27017
       database: note
   servlet:
@@ -11,6 +11,6 @@ spring:
 fdfs:
   so-timeout: 1500
   connect-timeout: 600
-  tracker-list: 10.20.134.151:22122
+  tracker-list: 114.55.65.144:22122
 catalog:
-  file-nginx-url: 10.20.134.151:80
+  file-nginx-url: 114.55.65.144:80

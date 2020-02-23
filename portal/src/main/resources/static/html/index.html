@@ -266,6 +266,11 @@
                 break;
             }
             case 'remove': {
+                $.messager.progress({
+                    title: '提示',
+                    msg: '正在删除文件，请稍候……',
+                    text: ''
+                });
                 $.ajax({
                     url: "/catalog/removeFolder",
                     data: {"father_id": node.father_id,"catalog_id": node.id},
@@ -275,6 +280,9 @@
                         } else {
                             alert(obj.data);
                         }
+                    },
+                    complete: function () {
+                        $.messager.progress('close');
                     }
                 });
                 break;
@@ -350,6 +358,11 @@
         }
     };
     function uploadFile() {
+        $.messager.progress({
+            title: '提示',
+            msg: '文件上传中，请稍候……',
+            text: ''
+        });
         $.ajax({
             type: "post",
             url: "/catalog/uploadFile",
@@ -377,6 +390,9 @@
             },
             error: function () {
                 alert("异常!");
+            },
+            complete: function () {
+                $.messager.progress('close');
             }
         });
     }
